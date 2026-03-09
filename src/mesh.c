@@ -345,9 +345,15 @@ int msh_neighborsQ2(Mesh* Msh)
   if (Msh->TriVoi == NULL)
     Msh->TriVoi = calloc((Msh->NbrTri + 1), sizeof(int3d));
 
+  memset(Msh->TriVoi, 0, (Msh->NbrTri + 1) * sizeof(int3d));
+
   //--- Compute the neighbors using a quadratic-complexity algorithm
   for (iTri = 1; iTri <= Msh->NbrTri; iTri++) {
     for (iEdg = 0; iEdg < 3; iEdg++) {
+
+      if(Msh->TriVoi[iTri][iEdg] != 0) 
+        continue; // already set, skip
+
       iVer1 = Msh->Tri[iTri][tri2edg[iEdg][0]];
       iVer2 = Msh->Tri[iTri][tri2edg[iEdg][1]];
 
@@ -360,8 +366,11 @@ int msh_neighborsQ2(Mesh* Msh)
           jVer1 = Msh->Tri[jTri][tri2edg[jEdg][0]];
           jVer2 = Msh->Tri[jTri][tri2edg[jEdg][1]];
 
-          // TODO: compare the 4 points
-          //       set the neighbors Msh->TriVoi if both edges match
+          if(((iVer1 == jVer1) && (iVer2 == jVer2)) || ((iVer1 = jVer2) && (iVer2 == jVer1))){
+            Msh->TriVoi[iTri][iEdg] = jTri; // set neighbor of iTri at edge iEdg
+            Msh->TriVoi[jTri][jEdg] = iTri; // set neighbor of jTri at edge jEdg
+            break;
+          }
         }
       }
     }
@@ -380,8 +389,9 @@ int msh_neighbors(Mesh* Msh)
     Msh->TriVoi = calloc((Msh->NbrTri + 1), sizeof(int3d));
 
   //--- initialize HashTable and set the hash table
-
-  // TODO
+  int SizHead = 3*Msh->NbrTri;
+  int NbrMaxObj = 3*Msh->NbrTri/2 + Msh->NbrTri;
+  HashTable* hsh = hash_init(SizHead, NbrMaxObj);
 
   //--- Compute the neighbors using the hash table
   for (iTri = 1; iTri <= Msh->NbrTri; iTri++) {
@@ -389,50 +399,101 @@ int msh_neighbors(Mesh* Msh)
       iVer1 = Msh->Tri[iTri][tri2edg[iEdg][0]];
       iVer2 = Msh->Tri[iTri][tri2edg[iEdg][1]];
 
+      int iObj = hash_find(hsh, iVer1, iVer2);
+
       // TODO:
       // compute the key : iVer1+iVer2
       // do we have objects as that key   hash_find () */
       //  if yes ===> look among objects and potentially update TriVoi */
       //  if no  ===> add to hash table   hash_add()   */
+      if(iObj == 0){
+        hash_add(hsh, iVer1, iVer2, iTri);
+      }
+      else{
+        int jTri = hsh->LstObj[iObj][2]; //1st triangle having iVer1-iVer2 as edge
+        hsh ->LstObj[iObj][3] = iTri; //2nd triangle
+
+        int jEdg;
+        for(jEdg=0; jEdg<3; jEdg++){
+          int jVer1 = Msh->Tri[jTri][tri2edg[jEdg][0]];
+          int jVer2 = Msh->Tri[jTri][tri2edg[jEdg][1]];
+
+          if((jVer1 == iVer1 && jVer2 == iVer2) || (jVer1 == iVer2 && jVer2 == iVer1))break;
+        }
+        
+        Msh->TriVoi[iTri][iEdg] = jTri;
+        Msh->TriVoi[jTri][jEdg] = iTri;
+      }
     }
   }
+
+  free(hsh->Head);
+  free(hsh->LstObj);
+  free(hsh);
 
   return 1;
 }
 
 HashTable* hash_init(int SizHead, int NbrMaxObj)
 {
-  HashTable* hsh = NULL;
+  HashTable* hsh = malloc(sizeof(HashTable));
+  if (!hsh) return NULL;
 
-  // to be implemented
+  hsh->SizHead   = SizHead;
+  hsh->NbrMaxObj = NbrMaxObj;
+  hsh->NbrObj    = 0;
 
-  // allocate hash table
-
-  // initialize hash table
-
-  // allocate Head, LstObj
+  // calloc zeroes memory: Head[i]=0 means no obj at key i
+  hsh->Head   = calloc(SizHead,    sizeof(int));
+  hsh->LstObj = calloc(NbrMaxObj + 1, sizeof(int5d));
 
   return hsh;
 }
 
 int hash_find(HashTable* hsh, int iVer1, int iVer2)
 {
- 
-  // to be implemented
+  // compute key
+  int key = (iVer1 + iVer2) % hsh->SizHead;
 
-  // return the id found (in LstObj ), if 0 the object is not in the list
+  // start at the first object with this key
+  int iObj = hsh->Head[key];
 
-  return 0;
+  // follow the chain until it finds a match or reach the end
+  while (iObj != 0) {
+    if ( (hsh->LstObj[iObj][0] == iVer1 && hsh->LstObj[iObj][1] == iVer2) ||
+         (hsh->LstObj[iObj][0] == iVer2 && hsh->LstObj[iObj][1] == iVer1) ) {
+      return iObj; // found! return its index in LstObj
+    }
+    iObj = hsh->LstObj[iObj][4]; // follow chain to next object with same key
+  }
+
+  return 0; // not found
 }
 
 int hash_add(HashTable* hsh, int iVer1, int iVer2, int iTri)
 {
  
-  // to be implemented
+  if (hsh->NbrObj >= hsh->NbrMaxObj) {
+    printf("  ## ERROR: Hash table is full ! \n");
+    return 0;
+  }
 
-  // ===> add this entry in the hash tab
+  int key = (iVer1 + iVer2) % hsh->SizHead;
 
-  return 0;
+  //allocate a new slot
+  int iObj = ++hsh->NbrObj;
+
+  //store edge data
+  hsh->LstObj[iObj][0] = iVer1;
+  hsh->LstObj[iObj][1] = iVer2;
+  hsh->LstObj[iObj][2] = iTri; // first triangle
+  hsh->LstObj[iObj][3] = 0;    // second triangle, not known yet
+
+  //add to the head of the chain
+  hsh->LstObj[iObj][4] = hsh->Head[key]; // point to previous 1st obj
+  hsh->Head[key] = iObj; // point to new 1st obj
+
+  return iObj;
 }
 
 int hash_suppr(HashTable* hsh, int iVer1, int iVer2, int iTri)
