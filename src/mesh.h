@@ -112,3 +112,6 @@ int hash_suppr(HashTable* hsh, int iVer1, int iVer2, int iTri); // ==> suppress 
 int msh_write2dmetric(char* file, int nmetric, double3d* metric);
 int msh_write2dfield_Triangles(char* file, int nfield, double* field);
 int msh_write2dfield_Vertices(char* file, int nfield, double* field);
+
+
+int msh_histogram(double* Qal, int NbrTri, int NbrBins, double QMax);

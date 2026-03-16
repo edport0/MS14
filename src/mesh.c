@@ -388,6 +388,8 @@ int msh_neighbors(Mesh* Msh)
   if (Msh->TriVoi == NULL)
     Msh->TriVoi = calloc((Msh->NbrTri + 1), sizeof(int3d));
 
+  memset(Msh->TriVoi, 0, sizeof(int3d) * (Msh->NbrTri + 1)); // reset!
+
   //--- initialize HashTable and set the hash table
   int SizHead = 3*Msh->NbrTri;
   int NbrMaxObj = 3*Msh->NbrTri/2 + Msh->NbrTri;
@@ -401,11 +403,6 @@ int msh_neighbors(Mesh* Msh)
 
       int iObj = hash_find(hsh, iVer1, iVer2);
 
-      // TODO:
-      // compute the key : iVer1+iVer2
-      // do we have objects as that key   hash_find () */
-      //  if yes ===> look among objects and potentially update TriVoi */
-      //  if no  ===> add to hash table   hash_add()   */
       if(iObj == 0){
         hash_add(hsh, iVer1, iVer2, iTri);
       }
@@ -420,12 +417,46 @@ int msh_neighbors(Mesh* Msh)
 
           if((jVer1 == iVer1 && jVer2 == iVer2) || (jVer1 == iVer2 && jVer2 == iVer1))break;
         }
-        
+
         Msh->TriVoi[iTri][iEdg] = jTri;
         Msh->TriVoi[jTri][jEdg] = iTri;
       }
     }
   }
+
+  int NbrBnd = 0;
+  for(int iObj = 1; iObj <= hsh->NbrObj; iObj++){
+    if(hsh->LstObj[iObj][3] == 0) NbrBnd++;
+  }
+  printf("  Boundary edges:           %d\n", NbrBnd);
+
+    // --- Edge count
+  printf("  Number of edges: %d\n", hsh->NbrObj);
+
+  // --- Collision diagnostics
+  int    maxChain  = 0;
+  int    emptySlots = 0;
+  double avgChain  = 0.0;
+  int    usedSlots = 0;
+
+  for (int i = 0; i < hsh->SizHead; i++) {
+    int len  = 0;
+    int iObj = hsh->Head[i];
+    if (iObj == 0) { emptySlots++; continue; }
+    while (iObj != 0) {
+      len++;
+      iObj = hsh->LstObj[iObj][4];
+    }
+    if (len > maxChain) maxChain = len;
+    avgChain += len;
+    usedSlots++;
+  }
+  avgChain /= usedSlots;
+
+  printf("  Hash key:          (iVer1 + iVer2) %% SizHead\n");
+  printf("  Max chain length:  %d\n", maxChain);
+  printf("  Avg chain length:  %.2f\n", avgChain);
+  printf("  Empty slots:       %d / %d\n", emptySlots, hsh->SizHead);
 
   free(hsh->Head);
   free(hsh->LstObj);
@@ -574,3 +605,26 @@ int msh_write2dmetric(char* file, int nmetric, double3d* metric)
 
   return 1;
 }
+
+
+int msh_histogram(double* Qal, int NbrTri, int NbrBins, double QMax)
+{
+  int    i, iTri;
+  int*   bins  = calloc(NbrBins, sizeof(int));
+  double width = (QMax - 1.0) / NbrBins;
+
+  for (iTri = 1; iTri <= NbrTri; iTri++) {
+    int b = (int)((Qal[iTri] - 1.0) / width); // shift by 1 since min quality = 1
+    if (b >= NbrBins) b = NbrBins - 1;         // clamp outliers to last bin
+    bins[b]++;
+  }
+
+  printf("\n--- Quality histogram (NbrBins=%d, QMax=%.2f) ---\n", NbrBins, QMax);
+  for (i = 0; i < NbrBins; i++) {
+    printf("  [%.4f - %.4f] : %d\n", 1.0 + i*width, 1.0 + (i+1)*width, bins[i]);
+  }
+
+  free(bins);
+  return 1;
+}
+

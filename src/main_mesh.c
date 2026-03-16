@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
 
   double* Qal = (double*)malloc(sizeof(double) * (Msh->NbrTri + 1));
   
-  msh_quality(Msh, Qal, 0); // compute quality with Q1
+  msh_quality(Msh, Qal, 1); // compute quality with Q1
 
   //---Printing stats
   double qmin = 1e30, qmax = 0.0, qmean = 0.0;
@@ -46,7 +46,9 @@ int main(int argc, char* argv[])
       qmean += Qal[iTri];
   }
   qmean /= Msh->NbrTri;
-  printf("Quality Q1 - min: %.4f  mean: %.4f  max: %.4f\n", qmin, qmean, qmax);
+  printf("Quality Q2 - min: %.4f  mean: %.4f  max: %.4f\n", qmin, qmean, qmax);
+
+  //msh_histogram(Qal, Msh->NbrTri, 10, 2.0); //number of bins = 10, max quality = 1.3
 
 
   msh_write2dfield_Triangles("quality.solb", Msh->NbrTri, Qal);
