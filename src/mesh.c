@@ -80,8 +80,11 @@ Mesh* msh_read(char* file, int readEfr)
   Msh->NbrVer = GmfStatKwd(fmsh, GmfVertices);
   Msh->NbrTri = GmfStatKwd(fmsh, GmfTriangles);
 
-  Msh->NbrVerMax = Msh->NbrVer;
-  Msh->NbrTriMax = Msh->NbrTri;
+  //Msh->NbrVerMax = Msh->NbrVer;
+  //Msh->NbrTriMax = Msh->NbrTri;
+  Msh->NbrVerMax = Msh->NbrVer + 1000; //for insertion tests
+  Msh->NbrTriMax = Msh->NbrTri + 2*1000; 
+  
 
   //--- allocate arrays
   Msh->Crd    = calloc((Msh->NbrVerMax + 1), sizeof(double3d));
@@ -366,7 +369,7 @@ int msh_neighborsQ2(Mesh* Msh)
           jVer1 = Msh->Tri[jTri][tri2edg[jEdg][0]];
           jVer2 = Msh->Tri[jTri][tri2edg[jEdg][1]];
 
-          if(((iVer1 == jVer1) && (iVer2 == jVer2)) || ((iVer1 = jVer2) && (iVer2 == jVer1))){
+          if(((iVer1 == jVer1) && (iVer2 == jVer2)) || ((iVer1 == jVer2) && (iVer2 == jVer1))){
             Msh->TriVoi[iTri][iEdg] = jTri; // set neighbor of iTri at edge iEdg
             Msh->TriVoi[jTri][jEdg] = iTri; // set neighbor of jTri at edge jEdg
             break;
@@ -386,9 +389,9 @@ int msh_neighbors(Mesh* Msh)
   if (!Msh) return 0;
 
   if (Msh->TriVoi == NULL)
-    Msh->TriVoi = calloc((Msh->NbrTri + 1), sizeof(int3d));
+    Msh->TriVoi = calloc((Msh->NbrTriMax + 1), sizeof(int3d));
 
-  memset(Msh->TriVoi, 0, sizeof(int3d) * (Msh->NbrTri + 1)); // reset!
+  memset(Msh->TriVoi, 0, sizeof(int3d) * (Msh->NbrTriMax + 1)); // reset!
 
   //--- initialize HashTable and set the hash table
   int SizHead = 3*Msh->NbrTri;
@@ -607,3 +610,190 @@ int msh_write2dmetric(char* file, int nmetric, double3d* metric)
 }
 
 
+int msh_add_vertex(Mesh *Msh, double x, double y)
+{
+    if (!Msh) return 0;
+    if (Msh->NbrVer + 1 > Msh->NbrVerMax) {
+        fprintf(stderr, "Not enough space in vertex arrays\n");
+        return 0;
+    }
+
+    Msh->NbrVer++;
+    Msh->Crd[Msh->NbrVer][0] = x;
+    Msh->Crd[Msh->NbrVer][1] = y;
+
+    return Msh->NbrVer;
+}
+
+
+
+int find_point_in_mesh(Mesh* Msh, double x, double y, int *iTriFound, double beta[3])
+{
+  int iTri, iVer1, iVer2, iVer3;
+  double den;
+  const double eps = 1e-12;
+
+  if(!Msh || !iTriFound || !beta)
+    return 0;
+
+  *iTriFound = 0;
+  beta[0] = beta[1] = beta[2] = 0.0;
+
+  for(iTri=1; iTri<=Msh->NbrTri; iTri++){
+    
+    iVer1 = Msh->Tri[iTri][0];
+    iVer2 = Msh->Tri[iTri][1];
+    iVer3 = Msh->Tri[iTri][2];
+
+    double* A = Msh->Crd[iVer1];
+    double* B = Msh->Crd[iVer2];
+    double* C = Msh->Crd[iVer3];
+
+    den = tri_area(A,B,C);
+
+    //--- barycentric coordinates of (x,y) in triangle A-B-C
+    beta[0] = tri_area((double[]){x,y}, B, C) / den;
+    beta[1] = tri_area(A, (double[]){x,y}, C) / den;
+    beta[2] = tri_area(A, B, (double[]){x,y}) / den;
+
+    if(beta[0] >= -eps && beta[1] >= -eps && beta[2] >= -eps) {
+      if(fabs(beta[0])< eps) beta[0] = 0.0;
+      if(fabs(beta[1])< eps) beta[1] = 0.0;
+      if(fabs(beta[2])< eps) beta[2] = 0.0;
+
+      *iTriFound = iTri;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int msh_split_triangle_naive(Mesh* Msh, int iTri, int iP)
+{
+    int A, B, C;
+    int iTri2, iTri3;
+
+    if(!Msh) return 0;
+    
+    if(Msh->NbrTri + 2 > Msh->NbrTriMax)
+    {
+      fprintf(stderr, "## ERROR: not enough space in triangle arrays\n");
+      return 0;
+    }
+
+    A = Msh->Tri[iTri][0];
+    B = Msh->Tri[iTri][1];
+    C = Msh->Tri[iTri][2];
+
+
+    //---The new triangle slots at the end
+    iTri2 = Msh->NbrTri + 1;
+    iTri3 = Msh->NbrTri + 2;
+
+    //--- Replace the old (ABC) with (ABP)
+    Msh->Tri[iTri][0] = A;
+    Msh->Tri[iTri][1] = B;
+    Msh->Tri[iTri][2] = iP;
+
+    //--- Add (BCP)
+    Msh->Tri[iTri2][0] = B;
+    Msh->Tri[iTri2][1] = C;
+    Msh->Tri[iTri2][2] = iP;
+
+    //--- Add (CAP)
+    Msh->Tri[iTri3][0] = C;
+    Msh->Tri[iTri3][1] = A;
+    Msh->Tri[iTri3][2] = iP;
+
+    Msh->NbrTri += 2;
+
+    return 1;
+}
+
+int msh_split_edge_naive(Mesh* Msh, int iTri, int iEdg, int iP)
+{
+  int A, B, C, D;
+  int jTri, jEdg;
+  int iTri2, iTri3;
+
+  if(!Msh) return 0;
+
+  A = Msh->Tri[iTri][tri2edg[iEdg][0]];
+  B = Msh->Tri[iTri][tri2edg[iEdg][1]];
+  C = Msh->Tri[iTri][iEdg];
+
+  jTri = 0;
+  if(Msh->TriVoi)
+    jTri = Msh->TriVoi[iTri][iEdg];
+
+
+  //--- Boundary edge case
+  if(jTri == 0){
+    iTri2 = Msh->NbrTri + 1;
+
+    if (Msh->NbrTri + 1 > Msh->NbrTriMax) {
+      fprintf(stderr, "## ERROR: not enough space in triangle arrays\n");
+      return 0;
+    }
+
+    //---Replace the old triangle (ABC) by (APC)
+    Msh->Tri[iTri][0] = A;
+    Msh->Tri[iTri][1] = iP;
+    Msh->Tri[iTri][2] = C;
+
+    //---Add (PBC)
+    Msh->Tri[iTri2][0] = iP;
+    Msh->Tri[iTri2][1] = B;
+    Msh->Tri[iTri2][2] = C;
+
+    Msh->NbrTri += 1;
+    return 1;
+  }
+
+  //--- Interior edge case
+  jEdg = -1;
+  for(int k = 0; k < 3; k++){
+    if(Msh->TriVoi[jTri][k] == iTri){
+      jEdg = k;
+      break;
+    }
+  }
+
+  if(jEdg == -1){
+    fprintf(stderr,"## ERROR: inconsistent TriVoi\n");
+    return 0;
+  }
+
+  D = Msh->Tri[jTri][jEdg]; //vertex of jTri opposite of the common edge
+
+  if (Msh->NbrTri + 2 > Msh->NbrTriMax) {
+        fprintf(stderr, "## ERROR: not enough space in triangle arrays\n");
+        return 0;
+  }
+
+  iTri2 = Msh->NbrTri + 1;
+  iTri3 = Msh->NbrTri + 2;
+
+  //---Overwrite iTri
+  Msh->Tri[iTri][0] = A;
+  Msh->Tri[iTri][1] = iP;
+  Msh->Tri[iTri][2] = C;
+
+  //---Overwrite jTri
+  Msh->Tri[jTri][0] = iP;
+  Msh->Tri[jTri][1] = B;
+  Msh->Tri[jTri][2] = C;
+
+  //---New appended triangles
+    Msh->Tri[iTri2][0] = B;
+    Msh->Tri[iTri2][1] = iP;
+    Msh->Tri[iTri2][2] = D;
+
+    Msh->Tri[iTri3][0] = iP;
+    Msh->Tri[iTri3][1] = A;
+    Msh->Tri[iTri3][2] = D;
+
+    Msh->NbrTri += 2;
+
+    return 1;
+}
