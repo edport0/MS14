@@ -114,4 +114,3 @@ int msh_write2dfield_Triangles(char* file, int nfield, double* field);
 int msh_write2dfield_Vertices(char* file, int nfield, double* field);
 
 
-int msh_histogram(double* Qal, int NbrTri, int NbrBins, double QMax);

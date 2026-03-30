@@ -607,24 +607,3 @@ int msh_write2dmetric(char* file, int nmetric, double3d* metric)
 }
 
 
-int msh_histogram(double* Qal, int NbrTri, int NbrBins, double QMax)
-{
-  int    i, iTri;
-  int*   bins  = calloc(NbrBins, sizeof(int));
-  double width = (QMax - 1.0) / NbrBins;
-
-  for (iTri = 1; iTri <= NbrTri; iTri++) {
-    int b = (int)((Qal[iTri] - 1.0) / width); // shift by 1 since min quality = 1
-    if (b >= NbrBins) b = NbrBins - 1;         // clamp outliers to last bin
-    bins[b]++;
-  }
-
-  printf("\n--- Quality histogram (NbrBins=%d, QMax=%.2f) ---\n", NbrBins, QMax);
-  for (i = 0; i < NbrBins; i++) {
-    printf("  [%.4f - %.4f] : %d\n", 1.0 + i*width, 1.0 + (i+1)*width, bins[i]);
-  }
-
-  free(bins);
-  return 1;
-}
-

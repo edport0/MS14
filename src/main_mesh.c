@@ -48,7 +48,6 @@ int main(int argc, char* argv[])
   qmean /= Msh->NbrTri;
   printf("Quality Q2 - min: %.4f  mean: %.4f  max: %.4f\n", qmin, qmean, qmax);
 
-  //msh_histogram(Qal, Msh->NbrTri, 10, 2.0); //number of bins = 10, max quality = 1.3
 
 
   msh_write2dfield_Triangles("quality.solb", Msh->NbrTri, Qal);
