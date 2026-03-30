@@ -114,4 +114,12 @@ int msh_write2dfield_Triangles(char* file, int nfield, double* field);
 int msh_write2dfield_Vertices(char* file, int nfield, double* field);
 
 
-int msh_histogram(double* Qal, int NbrTri, int NbrBins, double QMax);
+//--- Find the triangle containing a point (x,y), return 0 if not found
+int find_point_in_mesh(Mesh* Msh, double x, double y, int *iTriFound, double beta[3]);
+
+//--- Splits the triangle containing a point into 3 new subtriangles
+int msh_split_triangle_naive(Mesh* Msh, int iTri, int iP);
+int msh_split_edge_naive(Mesh* Msh, int iTri, int iEdg, int iP);
+
+//--- Updates the Crd table with the added point
+int msh_add_vertex(Mesh *Msh, double x, double y);
