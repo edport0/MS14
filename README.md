@@ -56,7 +56,6 @@ What it does:
   - `quality.solb`
   - `metric.solb`
 
-Typical use:
 
 ```powershell
 ./main_mesh ..\data\square_unity_test.mesh
@@ -73,9 +72,7 @@ What it does:
 - writes:
   - `quality.solb`
 
-This is useful when you only want the colormap and do not want to run the full mesh-neighbor analysis.
 
-Typical use:
 
 ```powershell
 ./main_quality triangulation_naive_out.mesh
@@ -200,31 +197,6 @@ Mesh I/O support library for `.mesh` / `.sol` style files.
 
 Auxiliary numerical routines used by the project.
 
-## Supporting Scripts
-
-### `compare_naive_localization.ps1`
-
-Benchmark helper for the naive method.
-
-What it does:
-- rebuilds `triangulation_naive.exe`,
-- runs both localization modes:
-  - `full`
-  - `walk`
-- sweeps a list of point counts,
-- writes timing lines to `naive_localization_timings.txt`.
-
-Run from `src/`:
-
-```powershell
-.\compare_naive_localization.ps1
-```
-
-Or with custom values:
-
-```powershell
-.\compare_naive_localization.ps1 -MeshFile "..\data\square_unity_test.mesh" -PointCounts 100,200,500,1000
-```
 
 
 ## Typical Workflow
