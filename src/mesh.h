@@ -69,6 +69,20 @@ typedef struct t_mesh {
 
 } Mesh;
 
+//--- Stack structure
+typedef struct {
+    int *data;
+    int top;
+    int cap;
+} IntStack;
+
+//--- Boundary edge structure
+typedef struct {
+    int a, b;
+    int iTri;
+    int iEdg;
+} BoundaryEdge;
+
 //--- Provided functions
 Mesh*   msh_init();
 Mesh*   msh_read(char* file, int readEfr);
@@ -101,6 +115,11 @@ typedef struct hash_table {
 
 //--- Implementing the following function should be necessary
 HashTable* hash_init(int SizHead, int NbrMaxObj); // alloc and set htable ==> allocate Head, LstObj
+IntStack* initStack(int cap);
+int       pushStack(IntStack* stk, int value);
+int       popStack(IntStack* stk, int* value);
+int       sizeStack(IntStack* stk);
+void      freeStack(IntStack* stk);
 
 int hash_find(HashTable* hsh, int iVer1, int iVer2); // return the id found (in LstObj ), if 0 the object is not in the list
 int hash_add(HashTable* hsh, int iVer1, int iVer2, int iTri); // ==> add this entry in the hash tab
@@ -115,7 +134,9 @@ int msh_write2dfield_Vertices(char* file, int nfield, double* field);
 
 
 //--- Find the triangle containing a point (x,y), return 0 if not found
+int compute_barycentrics(Mesh* Msh, double x, double y, int iTri, double beta[3]);
 int find_point_in_mesh(Mesh* Msh, double x, double y, int *iTriFound, double beta[3]);
+int find_point_walk(Mesh* Msh, double x, double y, int iTriStart, int *iTriFound, double beta[3]);
 
 //--- Splits the triangle containing a point into 3 new subtriangles
 int msh_split_triangle_naive(Mesh* Msh, int iTri, int iP);
@@ -123,3 +144,17 @@ int msh_split_edge_naive(Mesh* Msh, int iTri, int iEdg, int iP);
 
 //--- Updates the Crd table with the added point
 int msh_add_vertex(Mesh *Msh, double x, double y);
+
+//--- Delaunay cavity
+int msh_build_cavity(Mesh* Msh, int iTriSeed, int iP,
+                     int* cav, int* nCav,
+                     BoundaryEdge* PilEdg, int* nPilEdg);
+int msh_delete_cavity(Mesh* Msh, int* cav, int nCav);
+int msh_star_cavity(Mesh* Msh, int iP,
+                    BoundaryEdge* PilEdg, int nPilEdg,
+                    int* cav, int nCav);
+int msh_insert_point_delaunay(Mesh* Msh, double x, double y);
+
+//--- Edge swap operation
+int msh_should_swap_edge_quality(Mesh* Msh, int iTri, int iEdg, int useQ2);
+int msh_swap_edge(Mesh* Msh, int iTri, int iEdg);

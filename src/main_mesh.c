@@ -48,8 +48,6 @@ int main(int argc, char* argv[])
   qmean /= Msh->NbrTri;
   printf("Quality Q2 - min: %.4f  mean: %.4f  max: %.4f\n", qmin, qmean, qmax);
 
-
-
   msh_write2dfield_Triangles("quality.solb", Msh->NbrTri, Qal);
 
   //--- TODO: compute metric field

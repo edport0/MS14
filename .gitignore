@@ -1,0 +1,16 @@
+# Ignore everything by default
+*
+
+# Keep this file
+!.gitignore
+
+# Keep directories so exceptions below can work
+!*/
+
+# Keep the data folder and its contents
+!data/
+!data/**
+
+# Keep C sources and headers anywhere in the repo
+!*.c
+!*.h
