@@ -11,7 +11,6 @@ The current work focuses on:
 - `src/`: C sources, build targets, and helper scripts
 - `data/`: input meshes used for tests and comparisons
 - `bin/`: external binaries provided with the course
-- `test/`: extra test material if needed
 
 ## Build
 
